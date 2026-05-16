@@ -1383,6 +1383,7 @@
         <button type="submit" class="form-btn" id="submitBtn">▶ Send Message</button>
       </form>
 
+      <div id="form-error" style="display:none;font-family:'Space Mono',monospace;font-size:0.72rem;color:#ff3c00;letter-spacing:2px;padding:14px 18px;border:1px solid rgba(255,60,0,0.3);background:rgba(255,60,0,0.04);margin-top:10px;">✕ Could not send — please email: aronnohazra9@gmail.com</div>
       <div id="form-success" style="display:none;font-family:'Space Mono',monospace;font-size:0.78rem;color:#00ff64;letter-spacing:2px;padding:16px 20px;border:1px solid rgba(0,255,100,0.3);background:rgba(0,255,100,0.04);margin-top:12px;line-height:1.8;">
         ✓ MESSAGE SENT SUCCESSFULLY!<br>
         <span style="font-size:0.65rem;color:#9ba8b8;letter-spacing:1px;">I'll get back to you within 24 hours.</span>
@@ -1499,29 +1500,30 @@
   }, { threshold: 0.1 });
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-  // FORM — fetch no-cors (fire-and-forget to Google Forms)
+  // FORM — Formspree (reliable, works from static HTML)
   function handleSend(e) {
     e.preventDefault();
 
-    const name    = document.getElementById('f_name').value.trim();
-    const email   = document.getElementById('f_email').value.trim();
-    const subject = document.getElementById('f_subject').value.trim();
-    const message = document.getElementById('f_message').value.trim();
+    const fields = [
+      {id:'f_name',    label:'Name'},
+      {id:'f_email',   label:'Email'},
+      {id:'f_subject', label:'Subject'},
+      {id:'f_message', label:'Message'}
+    ];
 
     // Validate
     let valid = true;
-    [{id:'f_name',v:name},{id:'f_email',v:email},{id:'f_subject',v:subject},{id:'f_message',v:message}]
-      .forEach(({id,v}) => {
-        const el = document.getElementById(id);
-        if (!v) {
-          el.style.borderColor = 'var(--accent2)';
-          el.style.boxShadow   = '0 0 12px rgba(255,60,0,0.3)';
-          valid = false;
-        } else {
-          el.style.borderColor = 'var(--border)';
-          el.style.boxShadow   = 'none';
-        }
-      });
+    fields.forEach(({id}) => {
+      const el = document.getElementById(id);
+      if (!el.value.trim()) {
+        el.style.borderColor = 'var(--accent2)';
+        el.style.boxShadow   = '0 0 12px rgba(255,60,0,0.3)';
+        valid = false;
+      } else {
+        el.style.borderColor = 'var(--border)';
+        el.style.boxShadow   = 'none';
+      }
+    });
     if (!valid) return;
 
     const btn = document.getElementById('submitBtn');
@@ -1529,41 +1531,46 @@
     btn.style.background = 'rgba(0,240,255,0.15)';
     btn.disabled = true;
 
-    const params = new URLSearchParams();
-    params.append('entry.404491043',  name);
-    params.append('entry.1151579887', email);
-    params.append('entry.257647402',  subject);
-    params.append('entry.1539520862', message);
-    params.append('fvv', '1');
-    params.append('fbzx', Math.random().toString(36));
+    const payload = {
+      name:    document.getElementById('f_name').value.trim(),
+      email:   document.getElementById('f_email').value.trim(),
+      subject: document.getElementById('f_subject').value.trim(),
+      message: document.getElementById('f_message').value.trim()
+    };
 
-    fetch('https://docs.google.com/forms/d/e/1FAIpQLSc2T0V7iFqZYyxNdLVSnuhGcI3iVBtF_0R8nocMdj13UCYg4A/formResponse', {
+    fetch('https://formspree.io/f/xnjraabg', {
       method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body:    params.toString()
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body:    JSON.stringify(payload)
     })
-    .then(() => {
-      document.getElementById('form-success').style.display = 'block';
-      document.getElementById('portfolioForm').reset();
-      ['f_name','f_email','f_subject','f_message'].forEach(id => {
-        document.getElementById(id).style.borderColor = 'var(--border)';
-        document.getElementById(id).style.boxShadow   = 'none';
-      });
-      btn.textContent = '✓ Message Sent!';
-      btn.style.background = 'rgba(0,200,80,0.2)';
-      setTimeout(() => {
-        btn.textContent = '▶ Send Message';
-        btn.style.background = '';
-        btn.disabled = false;
-        document.getElementById('form-success').style.display = 'none';
-      }, 5000);
+    .then(res => res.json())
+    .then(data => {
+      if (data.ok || data.next) {
+        document.getElementById('form-success').style.display = 'block';
+        document.getElementById('form-error').style.display   = 'none';
+        document.getElementById('portfolioForm').reset();
+        fields.forEach(({id}) => {
+          document.getElementById(id).style.borderColor = 'var(--border)';
+          document.getElementById(id).style.boxShadow   = 'none';
+        });
+        btn.textContent = '✓ Message Sent!';
+        btn.style.background = 'rgba(0,200,80,0.2)';
+        setTimeout(() => {
+          btn.textContent = '▶ Send Message';
+          btn.style.background = '';
+          btn.disabled = false;
+          document.getElementById('form-success').style.display = 'none';
+        }, 5000);
+      } else {
+        throw new Error('Form error');
+      }
     })
     .catch(() => {
+      document.getElementById('form-error').style.display   = 'block';
+      document.getElementById('form-success').style.display = 'none';
       btn.textContent = '▶ Send Message';
       btn.style.background = '';
       btn.disabled = false;
-      alert('Could not send. Please email directly: aronnohazra9@gmail.com');
     });
   }
 
